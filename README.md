@@ -12,6 +12,7 @@ Do edycji wedle własnych potrzeb linijka 9, 10 i 11
 Użytkowanie:
 
 `getvid.sh -l <link_do_strony_z_filmem/serialem_w_serwisie_filman.cc> -t <[lL]ektor / [nN]apisy>`
+
 np.:
 
 `getvid.sh -l https://filman.cc/serial-online/2949/jakis-tam-serial -t l`
