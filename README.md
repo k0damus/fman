@@ -23,4 +23,6 @@ Spowoduj wyszukanie linków do odcinków konkretnego serialu wedle parametrów:
 
 Uprzednio zostanie wyświetlona informacja o tym, ile sezonów znaleziono oraz zapytanie ile z tych sezonów ściągnąć. Jest możliwość ściągnięcia konkrentego sezonu, ale też wszystkiego od razu.
 
+Jeśli chcemy ściągać serial to trzeba podać link do strony z rozpiską wszystkich sezonów, a nie link do strony z konkretnym sezonem/odcinkiem.
+
 Więcej komentarzy w kodzie.
