@@ -68,14 +68,14 @@ if [ "${seasons_available}" == 0 ]; then
 	#Jeśli to nie serial to wyciągamy tytuł
 	tytul=$( cat "${fRaw}" | grep 'og:title' | cut -d '"' -f4 | sed 's/ \/ / /;s/[:;`]//g;s/ /_/g' )
 	#A nastpnie linki dodostępnych VOD
-    cat "${fRaw}" | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fLinks}"
+    	cat "${fRaw}" | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fLinks}"
 else
 	#Jeżeli to jednak serial, to najpierw szukamy tytułu
 	tytul=$( cat "${fRaw}" | grep 'og:title' | cut -d '"' -f4 | sed 's/ \/ / /;s/[:;`]//g;s/ /_/g' )
 	#Potem wyciągamy linki do wszytkich epizodów
-    cat "${fRaw}" | sed 's/^[\t ]*//' | sed -n '/<span>Se/,/Komentarze/p' | sed -n 's/.*\(https.*serial-online.*\)">\(.*\)<\/a>.*$/\1;\2/p' | sed 's/ /_/g' > "${sLinksTmp}"
+    	cat "${fRaw}" | sed 's/^[\t ]*//' | sed -n '/<span>Se/,/Komentarze/p' | sed -n 's/.*\(https.*serial-online.*\)">\(.*\)<\/a>.*$/\1;\2/p' | sed 's/ /_/g' > "${sLinksTmp}"
 	#Wybór sezonu do ściągnięcia - pytamy użytkownika
-    while true; do
+   	while true; do
     	read -p "Ilość znalezionych sezonów serialu: ${seasons_available}. Podaj, który sezon pobrać (1 - ${seasons_available}) lub wpisz w albo W żeby ściągnąć wszystkie sezony: " get_season_no
 		#Sprawdzamy czy to co podał jest w ogóle liczbą/cyfrą ORAZ czy mieści się w dostępnym przedziale ilości sezonów (od 1 do ILOŚC_DOSĘPNYCH_SEZONÓW)
 		if [[ "${get_season_no}" =~ ^[0-9]+$ ]] && [ "${get_season_no}" -le "${seasons_available}" ]; then 
@@ -99,13 +99,13 @@ else
 		else
 			printf ""
 		fi
-    done
+    	done
 
 	#Następnie w pętli wyszukujemy linki VOD dla każdego odcinka i zapisujemy je do folderu /tmp/filman do pliku o nazwie: serial.tytulSerialu.tytulOdcinka.txt
-    printf "Szukam odnośników do odcinków...\n"
-    while read line; do 
-        curl -sL -c "${fTmp}"/cookie.txt -b "${fTmp}"/cookie.txt $(printf "${line}" | cut -d ';' -f1) | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fTmp}"/serial."${tytul}".$(printf "${line}" | cut -d ';' -f2).txt
-    done<"${sLinksSel}" 
+    	printf "Szukam odnośników do odcinków...\n"
+    	while read line; do 
+        	curl -sL -c "${fTmp}"/cookie.txt -b "${fTmp}"/cookie.txt $(printf "${line}" | cut -d ';' -f1) | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fTmp}"/serial."${tytul}".$(printf "${line}" | cut -d ';' -f2).txt
+    	done<"${sLinksSel}" 
 fi
 
 #Tworzy katalog tymczasowy do ściągania części filmu / odcinka serialu
@@ -223,7 +223,7 @@ vodCheck(){
 #Sprawdzamy czy ISTNIEJE i NIE JEST PUSTY plik z linkami do serialu
 if [ ! -s "${sLinksSel}" ]; then
 	#Jeśli nie to ściągamy film    
-    make_dir "${tytul}"		#Tworzymy jatalog tymczasowy
+    	make_dir "${tytul}"		#Tworzymy jatalog tymczasowy
    	vodCheck "${fLinks}"	#Szukamy dostępnego vod
 	printf "Pobieram ${tytul} z ${myVod}...\n\n"	#Informujemy skąd będziemy ściągać
 		if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
