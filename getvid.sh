@@ -82,7 +82,7 @@ else
 		if [[ "${get_season_no}" =~ ^[0-9]+$ ]] && [ "${get_season_no}" -le "${seasons_available}" ]; then 
 			#Dodatkowo sprawdzamy czy jest to liczba większa równa bądź większa niż 10, żeby odpowiednio sformatować grepa do wyszukiwania sezonów
 			if [ "${get_season_no}" -ge 10 ]; then 
-					season_wanted=${get_season_no}
+				season_wanted=${get_season_no}
 			else
 				season_wanted=0${get_season_no}
 			fi
