@@ -135,10 +135,15 @@ voe(){
 }
 
 vidoza(){
-	mkdir "${outDir}"/"${title}"
 	videoURL=$( curl -sL "${link}" | grep sourcesCode | cut -d '"' -f2 )
-	curl "${videoURL}" -o "${outDir}"/"${title}"/"${title}".mp4
-	printf "\n\nFilm zapisany w ${outDir}/${title}/${title}.mp4 \n\n"
+
+	if [ ! -z "${seriesTitle}" ] && [ ! -z "${seasonNumber}" ] && [ ! -z "${episodeTitle}" ]; then
+		curl "${videoURL}" -o "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".mp4
+		printf "\n\nFilm zapisany w ${outDir}/${seriesTitle}/${seasonNumber}/${episodeTitle}.mp4 \n\n"
+	else
+		curl "${videoURL}" -o "${outDir}"/"${title}"/"${title}".mp4
+		printf "\n\nFilm zapisany w ${outDir}/${title}/${title}.mp4 \n\n"
+	fi
 }
 
 dood(){
@@ -147,8 +152,14 @@ dood(){
 	tempUrl=$( curl -sL $( printf https://d0000d.com${passUrl} ) -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" )
 	randomString=$( cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1 )
 	validUrl=$( printf ${tempUrl}${randomString}"?token="${tokenUrl}"&expiry="$(date +%s)) 
-	curl -L "${validUrl}" -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".ts
-	printf "\n\nFilm zapisany w ${outDir}/${seriesTitle}/${seasonNumber}/${episodeTitle}.ts \n\n"
+
+	if [ ! -z "${seriesTitle}" ] && [ ! -z "${seasonNumber}" ] && [ ! -z "${episodeTitle}" ]; then
+		curl -L "${validUrl}" -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".ts
+		printf "\n\nFilm zapisany w ${outDir}/${seriesTitle}/${seasonNumber}/${episodeTitle}.ts \n\n"
+	else
+		curl -L "${validUrl}" -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${title}"/"${title}".ts
+		printf "\n\nFilm zapisany w ${outDir}/${title}/${title}.ts \n\n"
+	fi
 }
 
 upstream(){
@@ -220,7 +231,7 @@ getSeries(){
 #streamvid - meh
 vodCheck(){
 	#Lista w preferowanej kolejności serwisów
-	vods=('voe' 'vidoza' 'dood' 'upstream' 'streamvid')
+	vods=('vidoza' 'voe' 'dood' 'upstream' 'streamvid')
 	for v in "${vods[@]}"; do
 		isThere=$( grep "${v}" "${1}" | head -n 1 )
 		if [ ! -z $isThere ]; then
