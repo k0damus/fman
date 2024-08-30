@@ -7,11 +7,11 @@ fRaw='/tmp/filman/raw.html'
 fLinks='/tmp/filman/links.txt'
 sLinksTmp='/tmp/filman/series_links_tmp.txt'
 sLinksSel='/tmp/filman/series_links_selected.txt'
-outDir="${HOME}"/sciezka/do/zapisu/pobranych/plikow
+outDir="${HOME}"/sciezka/zapisu/pobranych/filmow
 fUser='login_usera_do_filmana'
 fPass='haslo_usera_do_filmana'
 
-req=('/usr/bin/curl' '/usr/bin/ffmpeg')
+req=('/usr/bin/curl')
 reqCheck=()
 
 for r in "${req[@]}"; do
@@ -67,12 +67,17 @@ seasons_available=$( cat "${fRaw}" | sed -n 's/.*Sezon \([0-9]\{1,\}\).*$/\1/p' 
 
 if [ "${seasons_available}" == 0 ]; then
 	#Jeśli to nie serial to wyciągamy tytuł
-	tytul=$( cat "${fRaw}" | grep 'og:title' | cut -d '"' -f4 | sed 's/ \/ / /;s/[:;`]//g;s/ /_/g' )
+	title=$( cat "${fRaw}" | grep 'og:title' | cut -d '"' -f4 | sed 's/ \/ / /;s/[:;`]//g;s/ /_/g' )
 	#A następnie linki dodostępnych VOD
 	cat "${fRaw}" | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fLinks}"
+	#Sprawdzamy czy w ogóle mamy linki do wybranej wersji
+	if [ -z "$(cat "${fLinks}")" ] ; then
+		printf "Brak źródeł dla wybranej wersji: ${mediaType}.\n"
+		exit 0
+	fi
 else
 	#Jeżeli to jednak serial, to najpierw szukamy tytułu
-	tytul=$( cat "${fRaw}" | grep 'og:title' | cut -d '"' -f4 | sed 's/ \/ / /;s/[:;`]//g;s/ /_/g' )
+	title=$( cat "${fRaw}" | grep 'og:title' | cut -d '"' -f4 | sed 's/ \/ / /;s/[:;`]//g;s/ /_/g' )
 	#Potem wyciągamy linki do wszytkich epizodów
 	cat "${fRaw}" | sed 's/^[\t ]*//' | sed -n '/<span>Se/,/Komentarze/p' | sed -n 's/.*\(https.*serial-online.*\)">\(.*\)<\/a>.*$/\1;\2/p' | sed 's/ /_/g' > "${sLinksTmp}"
 	#Wybór sezonu do ściągnięcia - pytamy użytkownika
@@ -105,7 +110,10 @@ else
 	#Następnie w pętli wyszukujemy linki VOD dla każdego odcinka i zapisujemy je do folderu /tmp/filman do pliku o nazwie: serial.tytulSerialu.tytulOdcinka.txt
 	printf "Szukam odnośników do odcinków...\n"
 	while read line; do 
-		curl -sL -c "${cookie}" -b "${cookie}" $(printf "${line}" | cut -d ';' -f1) | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fTmp}"/serial."${tytul}".$(printf "${line}" | cut -d ';' -f2).txt
+		curl -sL -c "${cookie}" -b "${cookie}" $(printf "${line}" | cut -d ';' -f1) | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fTmp}"/serial."${title}".$(printf "${line}" | cut -d ';' -f2).txt
+		if [ ! -s  "${fTmp}"/serial."${title}".$(printf "${line}" | cut -d ';' -f2).txt ] ; then
+			printf "Brak źródeł dla wybranej wersji: ${mediaType} dla: ${title}.$(printf "${line}" | cut -d ';' -f2) \n"
+		fi
 	done<"${sLinksSel}" 
 fi
 
@@ -127,10 +135,10 @@ voe(){
 }
 
 vidoza(){
-	mkdir "${outDir}"/"${tytul}"
+	mkdir "${outDir}"/"${title}"
 	videoURL=$( curl -sL "${link}" | grep sourcesCode | cut -d '"' -f2 )
-	curl "${videoURL}" -o "${outDir}"/"${tytul}"/"${tytul}".mp4
-	printf "\n\nFilm zapisany w ${outDir}/${tytul}/${tytul}.mp4 \n\n"
+	curl "${videoURL}" -o "${outDir}"/"${title}"/"${title}".mp4
+	printf "\n\nFilm zapisany w ${outDir}/${title}/${title}.mp4 \n\n"
 }
 
 dood(){
@@ -139,8 +147,8 @@ dood(){
 	tempUrl=$( curl -sL $( printf https://d0000d.com${passUrl} ) -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" )
 	randomString=$( cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1 )
 	validUrl=$( printf ${tempUrl}${randomString}"?token="${tokenUrl}"&expiry="$(date +%s)) 
-	curl -L "${validUrl}" -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${sTytul}"/"${sezon}"/"${oTytul}".ts
-	printf "\n\nFilm zapisany w ${outDir}/${sTytul}/${sezon}/${oTytul}.ts \n\n"
+	curl -L "${validUrl}" -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".ts
+	printf "\n\nFilm zapisany w ${outDir}/${seriesTitle}/${seasonNumber}/${episodeTitle}.ts \n\n"
 }
 
 upstream(){
@@ -171,19 +179,19 @@ getVideo(){
 		        count=$((count+1))
 		done<"${partsList}"
 
-	mkdir "${outDir}"/"${tytul}"
-	cat $(ls "${tmpDir}"/*.ts) > "${outDir}"/"${tytul}"/"${tytul}".ts 
-	printf "\n\nFilm zapisany w ${outDir}/${tytul}/${tytul}.ts \n\n"
+	mkdir "${outDir}"/"${title}"
+	cat $(ls "${tmpDir}"/*.ts) > "${outDir}"/"${title}"/"${title}".ts 
+	printf "\n\nFilm zapisany w ${outDir}/${title}/${title}.ts \n\n"
 }
 
 #Obsługa pobierania seriali - ładuje filmy do wcześniej przygotowanej struktury katalogów, wedle schematu:
 #${outDir}/Tytul:
-# - s01
-#   - [s01e01].tytul.mp4/mpg
+#- s01
+#  	- [s01e01].tytul.mp4/mpg
 #	- [s01e02].tytul.mp4/mpg
 #	- ...
 # - s02
-#   - [s02e01].tytul.mp4/mpg
+#	- [s02e01].tytul.mp4/mpg
 #	- [s02e02].tytul.mp4/mpg
 #	- ...
 getSeries(){
@@ -197,8 +205,8 @@ getSeries(){
 				count=$((count+1))
 		done<"${partsList}"
 
-	cat $(ls "${tmpDir}"/*.ts) > "${outDir}"/"${sTytul}"/"${sezon}"/"${oTytul}".ts 
-	printf "\n\nFilm zapisany w ${outDir}/${sTytul}/${sezon}/${oTytul}.ts \n\n"
+	cat $(ls "${tmpDir}"/*.ts) > "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".ts 
+	printf "\n\nFilm zapisany w ${outDir}/${seriesTitle}/${seasonNumber}/${episodeTitle}.ts \n\n"
 }
 
 #Sprawdzamy z którego serwisu możemy pobrać dany film. Preferowane jest voe.
@@ -226,10 +234,10 @@ vodCheck(){
 #CZĘŚĆ GŁÓWNA
 #Sprawdzamy czy ISTNIEJE i NIE JEST PUSTY plik z linkami do serialu
 if [ ! -s "${sLinksSel}" ]; then
-	#Jeśli nie to ściągamy film    
-	make_dir "${tytul}"		#Tworzymy jatalog tymczasowy
+	#Jeśli nie to ściągamy film
+	make_dir "${title}"		#Tworzymy jatalog tymczasowy
 	vodCheck "${fLinks}"	#Szukamy dostępnego vod
-	printf "Pobieram ${tytul} z ${myVod}...\n\n"	#Informujemy skąd będziemy ściągać
+	printf "Pobieram ${title} z ${myVod}...\n\n"	#Informujemy skąd będziemy ściągać
 		if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
 			"${myVod}"
 		else								#A jeśli nie, to odpalamy funkcję konkretnego vod, a potem getVideo
@@ -239,26 +247,27 @@ if [ ! -s "${sLinksSel}" ]; then
 else
 	#Jeśli są dane serialowe to robimy to poniżej    
 	for i in $( ls "${fTmp}" | grep 'serial\.' ); do
+		if [ ! -z  "$( cat "${fTmp}"/"${i}" )" ] ; then
+			seriesTitle=$( printf "${fTmp}"/"${i}" | cut -d '.' -f2) #Wybieramy tytul serialu
+			episodeTitle=$( printf "${fTmp}"/"${i}" | cut -d '.' -f3) #Wybieramy tytul odcinka
+			seasonNumber=$( printf "${episodeTitle}" | sed -n 's/^\[\([sS][0-9]\{1,2\}\).*$/\1/p') #Wybieramy znacznik sezonu w postaci: sXX / SXX
+			[ ! -d "${outDir}"/"${seriesTitle}"/"${seasonNumber}" ] && mkdir -p "${outDir}"/"${seriesTitle}"/"${seasonNumber}" #Tworzymy katalog: $outDir/seriesTitle/seasonNumber, jeżeli nie istnieje.
 
-		sTytul=$( printf "${i}" | cut -d '.' -f2) #Wybieramy tytul serialu
-		oTytul=$( printf "${i}" | cut -d '.' -f3) #Wybieramy tytul odcinka
-		sezon=$( printf "${oTytul}" | sed -n 's/^\[\([sS][0-9]\{1,2\}\).*$/\1/p') #Wybieramy znacznik sezonu: sXX / SXX
-		[ ! -d "${outDir}"/"${sTytul}"/"${sezon}" ] && mkdir -p "${outDir}"/"${sTytul}"/"${sezon}" #Tworzymy katalog: $outDir/tytulSerialu/znacznikSezonu, jeżeli nie istnieje.
+			if [ ! -s "${outDir}/${seriesTitle}/${seasonNumber}/${episodeTitle}.ts" ] ; then #Sprawdzamy czy plik: $outDir/seriesTitle/seasonNumber/episodeTitle.ts istnieje. Jeżeli nie to odpalamy procedurę ściągania.
 
-		if [ ! -s "${outDir}/${sTytul}/${sezon}/${oTytul}.ts" ] ; then #Sprawdzamy czy plik: $outDir/tytulSerialu/znacznikSezonu/tytulOdcinka.ts istnieje. Jeżeli nie to odpalamy procedurę ściągania.
+				make_dir "${episodeTitle}"				#Tworzymy folder tymczasowy dla odcinka
+				mv "${fTmp}"/"${i}" "${tmpDir}"		#Wrzucamy tam plik z linkami do odcinka
+				vodCheck "${tmpDir}"/"${i}"			#Wybieramy vod
 
-			make_dir "${oTytul}"				#Tworzymy folder tymczasowy dla odcinka
-			mv "${fTmp}"/"${i}" "${tmpDir}"		#Wrzucamy tam plik z linkami do odcinka
-			vodCheck "${tmpDir}"/"${i}"			#Wybieramy vod
-
-			printf "Pobieram ${oTytul} z ${myVod}...\n\n"	#Informujemy skąd będziemy ściągać
-			if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
-				"${myVod}"
-			else
-				"${myVod}"
-				getSeries #Zmodyfikowana funkcja getVideo, aby odpowiednio zapisywać odcinki w strukturze katalogów.
+				printf "Pobieram ${episodeTitle} z ${myVod}...\n\n"	#Informujemy skąd będziemy ściągać
+				if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
+					"${myVod}"
+				else
+					"${myVod}"
+					getSeries #Zmodyfikowana funkcja getVideo, aby odpowiednio zapisywać odcinki w strukturze katalogów.
+				fi
+				rm -rf "${tmpDir}"					#Wywalamy tymczasowy katalog dla odcinka
 			fi
-			rm -rf "${tmpDir}"					#Wywalamy tymczasowy katalog dla odcinka
 		fi
 	done
 fi
