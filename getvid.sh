@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -o pipefail
+set -u
+set -e
 
 fTmp='/tmp/filman'
 cookie='/tmp/filman/cookie.txt'
@@ -7,9 +9,11 @@ fRaw='/tmp/filman/raw.html'
 fLinks='/tmp/filman/links.txt'
 sLinksTmp='/tmp/filman/series_links_tmp.txt'
 sLinksSel='/tmp/filman/series_links_selected.txt'
+
 outDir="${HOME}"/sciezka/zapisu/pobranych/filmow
 fUser='login_usera_do_filmana'
 fPass='haslo_usera_do_filmana'
+typ=''
 
 req=('/usr/bin/curl')
 reqCheck=()
@@ -20,29 +24,29 @@ done
 
 if [ "${#reqCheck[@]}" -gt 0 ]; then
 	printf "${reqCheck[*]} <- Brak tych programów. Zainstaluj.\n";
-	exit 100
+	exit 10
 fi
 
 if [ ! -d "${outDir}" ]; then
 	printf "Katalog ${outDir} nie istnieje!\n";
-	exit 101
+	exit 11
 fi
 
 while getopts ":l:t:" opt; do
 	case "${opt}" in
 		l) link="${OPTARG}" ;;
 		t) typ="${OPTARG}" ;;
-		:) printf "Opcja -${OPTARG} wymaga argumentu.\n" ; exit 900 ;;
-		?) printf "Niewłaściwa opcja: -${OPTARG}.\n" ; exit 901
+		:) printf "Opcja -${OPTARG} wymaga argumentu.\n" ; exit 12 ;;
+		?) printf "Niewłaściwa opcja: -${OPTARG}.\n" ; exit 13
 	esac
 done
 
-if [ -z "${link}" ] ; then 
+if [ -z "${link}" ] ; then
 	printf "Brak / za malo danych.\n"
 	printf "Użycie: ./getvid.sh -l <link_do_strony_z_filmem/serialem_w_serwisie_filman.cc> -t <[lL]ektor / [nN]apisy>\n"
 	printf "Parametr opcjonalny:\n"
 	printf " -t <typ> - Jeśli parametr zostanie pominięty to pobrana zostanie wersja z lektorem. \n"
-	exit 200 
+	exit 14
 fi
 
 if [[ "${typ}" =~ [nN] ]] ; then
@@ -73,7 +77,7 @@ if [ "${seasons_available}" == 0 ]; then
 	#Sprawdzamy czy w ogóle mamy linki do wybranej wersji
 	if [ -z "$(cat "${fLinks}")" ] ; then
 		printf "Brak źródeł dla wybranej wersji: ${mediaType}.\n"
-		exit 0
+		exit 15
 	fi
 else
 	#Jeżeli to jednak serial, to najpierw szukamy tytułu
@@ -109,12 +113,12 @@ else
 
 	#Następnie w pętli wyszukujemy linki VOD dla każdego odcinka i zapisujemy je do folderu /tmp/filman do pliku o nazwie: serial.tytulSerialu.tytulOdcinka.txt
 	printf "Szukam odnośników do odcinków...\n"
-	while read line; do 
+	while read line; do
 		curl -sL -c "${cookie}" -b "${cookie}" $(printf "${line}" | cut -d ';' -f1) | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | grep "${mediaType}" | grep -v IVO | cut -d '"' -f10 | base64 -d | sed 's/}{/}\n{/g' | sed 's/\\//g' | cut -d '"' -f4 > "${fTmp}"/serial."${title}".$(printf "${line}" | cut -d ';' -f2).txt
 		if [ ! -s  "${fTmp}"/serial."${title}".$(printf "${line}" | cut -d ';' -f2).txt ] ; then
 			printf "Brak źródeł dla wybranej wersji: ${mediaType} dla: ${title}.$(printf "${line}" | cut -d ';' -f2) \n"
 		fi
-	done<"${sLinksSel}" 
+	done<"${sLinksSel}"
 fi
 
 #Tworzy katalog tymczasowy do ściągania części filmu / odcinka serialu
@@ -223,7 +227,7 @@ getSeries(){
 #Sprawdzamy z którego serwisu możemy pobrać dany film. Preferowane jest voe.
 #Funkcja sprawdza po kolei czy dane serwis znajduje się na liście z linkami do filmu
 #Jeśli istnieje to wybiera dany link do pobierania o przypisuje do zmiennej link ORAZ myVod - to wyjaśnione poniżej. Tu następuje wyjście z pętli.
-#Jeśli nie istnieje to szuka następnego z listy vods, aż do skutku.
+#Jeśli nie istnieje to szuka następnego z listy vods, aż do skutku.
 #voe - najszybsze pobieranie
 #vidoza - jw, ale mniej popularny serwis chyba
 #dood - ograniczone pobieranie, bardzo popularny serwis
@@ -249,7 +253,7 @@ if [ ! -s "${sLinksSel}" ]; then
 	make_dir "${title}"		#Tworzymy jatalog tymczasowy
 	vodCheck "${fLinks}"	#Szukamy dostępnego vod
 	printf "Pobieram ${title} z ${myVod}...\n\n"	#Informujemy skąd będziemy ściągać
-		if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
+		if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
 			"${myVod}"
 		else								#A jeśli nie, to odpalamy funkcję konkretnego vod, a potem getVideo
 			"${myVod}"
@@ -271,7 +275,7 @@ else
 				vodCheck "${tmpDir}"/"${i}"			#Wybieramy vod
 
 				printf "Pobieram ${episodeTitle} z ${myVod}...\n\n"	#Informujemy skąd będziemy ściągać
-				if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
+				if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
 					"${myVod}"
 				else
 					"${myVod}"
