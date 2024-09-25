@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -u
 set -e
-#Zmienne itd.
+#Zmienne: ścieżka zapisu wideo i dane logowania do filmana 
+outDir="${HOME}"/wedle/wlasnych/potrzeb
+fUser='login'
+fPass='haslo'
+#Zmienne: pliki i inne pomocnicze rzeczy
 fTmp='/tmp/filman'
 cookie='/tmp/filman/cookie.txt'
 fRaw='/tmp/filman/raw.html'
@@ -9,9 +13,6 @@ fSeriesRaw='/tmp/filman/seriesraw.html'
 fLinks='/tmp/filman/links.txt'
 sLinksTmp='/tmp/filman/series_links_tmp.txt'
 sLinksSel='/tmp/filman/series_links_selected.txt'
-outDir="${HOME}"/sciezka/zapisu/pobranych/filmow
-fUser='login_usera_do_filmana'
-fPass='haslo_usera_do_filmana'
 seriesTitle=''
 seasonNumber=''
 episodeTitle=''
@@ -68,7 +69,8 @@ fi
 #Na początek: łapiemy CTRL + C i usuwamy nasz katalog w razie czego
 trap "rm -rf ${fTmp}" SIGINT SIGTERM
 
-#Sprawdzamy czy jest dostępna wersja filmu jaką sobie wybraliśmy
+#FUNKCJE
+#Sprawdzamy czy jest dostępna wersja filmu jaką sobie wybraliśmy. Jeśli nie - wyświetlamy odpowiednie info.
 typesCheck(){
 	typesAvailable=($( cat "${1}"  | sed 's/^[\t ]*//' | sed -n '/<tbody>/, /<\/tbody>/p' | grep ^\<td | grep -v "center" | tr '\n' ' ' | sed 's/<td /\n<td /g' | grep 720 | sed 's/<[^>]*>//g' | sed -n 's/^.*\(PL\|ENG\|Lektor\|Napisy\).*$/\1/p' | sort -u ))
 	printf "Dostępne opcje: %s.\n" "${typesAvailable[*]}"
@@ -95,25 +97,27 @@ vidoza(){
 	videoURL=$( curl -sL "${link}" | grep sourcesCode | cut -d '"' -f2 )
 	if [ ! -z "${seriesTitle}" ] && [ ! -z "${seasonNumber}" ] && [ ! -z "${episodeTitle}" ]; then
 		curl "${videoURL}" -o "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".mp4
-                printf "\n\nFilm zapisany w %s/%s/%s/%s.mp4 \n\n" "${outDir}" "${seriesTitle}" "${seasonNumber}" "${episodeTitle}"
+        printf "\n\nFilm zapisany w %s/%s/%s/%s.mp4 \n\n" "${outDir}" "${seriesTitle}" "${seasonNumber}" "${episodeTitle}"
 	else
+		[ ! -d "${outDir}"/"${title}" ] && mkdir -p "${outDir}"/"${title}"
 		curl "${videoURL}" -o "${outDir}"/"${title}"/"${title}".mp4
-                printf "\n\nFilm zapisany w %s/%s/%s.mp4 \n\n" "${outDir}" "${title}" "${title}"
+        printf "\n\nFilm zapisany w %s/%s/%s.mp4 \n\n" "${outDir}" "${title}" "${title}"
 	fi
 }
 
 dood(){
 	passUrl=$( curl -sL "${link}" | sed -n 's/.*\(\/pass\_md5\/[-0-9a-z\/]*\).*$/\1/p')
-	tokenUrl=$( printf "${passUrl}" | cut -d '/' -f4 )
-	tempUrl=$( curl -sL $( printf https://d0000d.com${passUrl} ) -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" )
+	tokenUrl=$( printf "%s" "${passUrl}" | cut -d '/' -f4 )
+	tempUrl=$( curl -sL $( printf "https://d0000d.com%s" "${passUrl}" ) -H "referer: $( printf "%s" "${link}" | sed 's/dood.yt/d0000d.com/g')" )
 	randomString=$( cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1 )
-	validUrl=$( printf ${tempUrl}${randomString}"?token="${tokenUrl}"&expiry="$(date +%s)) 
+	validUrl=$( printf "%s%s?token=%s&expiry=$(date +%s)" "${tempUrl}" "${randomString}" "${tokenUrl}" )
 
 	if [ ! -z "${seriesTitle}" ] && [ ! -z "${seasonNumber}" ] && [ ! -z "${episodeTitle}" ]; then
-		curl -L "${validUrl}" -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".ts
+		curl -L "${validUrl}" -H "referer: $( printf "%s" "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${seriesTitle}"/"${seasonNumber}"/"${episodeTitle}".ts
 		printf "\n\nFilm zapisany w %s/%s/%s/%s.td \n\n" "${outDir}" "${seriesTitle}" "${seasonNumber}" "${episodeTitle}"
 	else
-		curl -L "${validUrl}" -H "referer: $( printf "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${title}"/"${title}".ts
+		[ ! -d "${outDir}"/"${title}" ] && mkdir -p "${outDir}"/"${title}"
+		curl -L "${validUrl}" -H "referer: $( printf "%s" "${link}" | sed 's/dood.yt/d0000d.com/g')" -o "${outDir}"/"${title}"/"${title}".ts
 		printf "\n\nFilm zapisany w %s/%s/%s.ts \n\n" "${outDir}" "${title}" "${title}"
 	fi
 }
@@ -124,14 +128,14 @@ getVideo(){
 	count=1;
 		while read line ; do
 		        nazwa=$(printf "%03d" "${count}");
-			printf "Pobieram część %s z %s\n" "${count}" "${ilosc}"
+				printf "Pobieram część %s z %s\n" "${count}" "${ilosc}"
     			curl -s "${mainURL}"/"${line}" -o "${tmpDir}"/"${nazwa}".ts
 		        count=$((count+1))
 		done<"${partsList}"
 
 	mkdir "${outDir}"/"${title}"
 	cat $(ls "${tmpDir}"/*.ts) > "${outDir}"/"${title}"/"${title}".ts 
-        printf "\n\nFilm zapisany w %s/%s/%s.ts \n\n" "${outDir}" "${title}" "${title}"
+    printf "\n\nFilm zapisany w %s/%s/%s.ts \n\n" "${outDir}" "${title}" "${title}"
 
 }
 
@@ -169,7 +173,7 @@ getSeries(){
 #dood - jw. ale ograniczone pobieranie
 vodCheck(){
 	#Lista w preferowanej kolejności serwisów - do edycji wedle potrzeb
-	vods=('vidoza' 'voe' 'dood')
+	vods=('vidoza' 'dood' 'voe')
 	for v in "${vods[@]}"; do
 		isThere=$( grep "${v}" "${1}" | head -n 1 )
 		if [ ! -z $isThere ]; then
@@ -183,7 +187,7 @@ vodCheck(){
 #CZĘŚĆ GŁÓWNA
 #####################################################
 #Tutaj zaczynamy imprezę robiąc porządki jeśli trzeba
-rm -rf "${fTmp}" >/dev/null 2>&1 && mkdir "${fTmp}"
+rm -rf "${fTmp}" >/dev/null 2>&1 && mkdir -p "${fTmp}"
 
 #Logowanie do filmana
 curl -sL -c "${cookie}" 'https://filman.cc/logowanie' --data-raw "login=${fUser}&password=${fPass}&remember=on&submit=" >/dev/null
@@ -251,9 +255,9 @@ else
 fi
 
 #Sprawdzamy czy ISTNIEJE i NIE JEST PUSTY plik z linkami do serialu
-if [ ! -s "${sLinksSel}" ]; then
+if [ ! -f "${sLinksSel}" ]; then
 	#Jeśli nie to ściągamy film
-	make_dir "${title}"	#Tworzymy jatalog tymczasowy
+	make_dir "${title}"	#Tworzymy katalog tymczasowy
 	vodCheck "${fLinks}"	#Szukamy dostępnego vod
 	printf "Pobieram %s z %s...\n\n" "${title}" "${myVod}"	#Informujemy skąd będziemy ściągać
 		if [ "${myVod}" == 'dood' ] || [ "${myVod}" == 'vidoza' ] ; then	#Jeśli wybrany/znaleziony vod to dood albo vidoza, to odpalamy tylko jego funkcję, bo ponieważ stamtąd ściągamy nieco inaczej
